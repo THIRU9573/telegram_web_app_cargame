@@ -1,0 +1,22 @@
+// export const Base_url = "http://192.168.1.78:8089/api/auth"
+export const Base_url = "http://localhost:53008/api/auth"
+// export const Base_url = "https://stringraceback.strtesting.com/api/auth"
+export const UserLogin = `${Base_url}/userlogin`
+export const AdminLogin = `${Base_url}/adminlogin`
+export const AddUser = `${Base_url}/admin`
+export const UserProfile = `${Base_url}/getprofile`
+export const UpdateUserProfile = `${Base_url}/updateprofile` 
+export const AllTasks = `${Base_url}/getUserTasks`
+export const AllAds = `${Base_url}/getUserads`
+export const CompleteTask = `${Base_url}/completetask`
+export const CompleteAd = `${Base_url}/completeUserAD`
+export const DailyReward = `${Base_url}/claimdailyReward`
+export const PlaceBet = `${Base_url}/game`
+export const GameControlles = `${Base_url}/getusersinglegame`
+export const GetCompletedTasks = `${Base_url}/getCompletedTasks`
+export const GetReferralHistory = `${Base_url}/getreferralHistory`
+export const GetReferralReward = `${Base_url}/getReferralReward`
+export const WithdrawRequest = `${Base_url}/withdrawRequest`
+export const GetWithdrawHistory = `${Base_url}/getWithdrawStatus`
+export const WithdrawLimits = `${Base_url}/getUserWithdrawalLimits`
+

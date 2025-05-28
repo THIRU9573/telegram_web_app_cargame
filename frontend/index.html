@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Metal+Mania&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>String Race</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+      // Check if Telegram WebApp is properly initialized
+      window.addEventListener('load', function() {
+        console.log('Telegram WebApp initialization check:', {
+          exists: !!window.Telegram,
+          webAppExists: !!window.Telegram?.WebApp,
+          isInitialized: !!window.Telegram?.WebApp?.initData,
+          platform: window.Telegram?.WebApp?.platform,
+          version: window.Telegram?.WebApp?.version
+        });
+
+        if (!window.Telegram?.WebApp?.initData) {
+          console.warn('Telegram WebApp not properly initialized, using fallback data');
+        }
+      });
+    </script>
+
+    <!-- Ads scripts  -->
+     <!-- adSDK 6052371 by onclckvd  -->
+     <script src="https://js.onclckvd.com/in-stream-ad-admanager/tma.js"></script>
+    
+     <!-- working ad -->
+    <script
+      src="//staurdoalse.net/vignette.min.js"
+      data-zone="8692316"
+      data-sdk="show_8692316"
+    ></script> 
+
+    <!-- Ads SDK from scroll bottom  -->
+    <script
+      src="https://richinfo.co/richpartners/telegram/js/rp-ob.js?pub_id=950447&widget_id=354303"
+      async
+      data-cfasync="false"
+    ></script>
+    <!-- auto popup ads  working -->
+      <!-- <script
+        src="//staurdoalse.net/sdk.js"
+        data-zone="8844872"
+        data-sdk="show_8844872"
+        data-sdk-auto="1/1/60/30/0"
+      ></script>  -->
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

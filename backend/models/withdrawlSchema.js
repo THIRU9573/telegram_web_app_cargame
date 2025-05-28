@@ -1,0 +1,34 @@
+const  mongoose =  require("mongoose");
+
+
+const withdrawalSchema = mongoose.Schema(
+    {
+        userId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User", // Reference to the User model
+            required: true,
+        },
+        username: {
+            type: String,
+            default: null
+        },
+        amount: {
+            type: Number,
+            required: [true, "Withdrawal amount is required"],
+            min: [10, "Withdrawal amount must be at least 10"],
+            
+        },
+       
+        status: {
+            type: String,
+            enum: ["pending", "approved", "rejected"], // Status of the withdrawal
+            default: "pending",
+        },
+        rejectionReason: { type: String, required:false }, 
+       
+    },
+    {
+        timestamps: true, // Automatically manage createdAt and updatedAt fields
+    }
+);
+module.exports=mongoose.model("Withdraw",withdrawalSchema);
