@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback,useContext } from "react";
 import { useNavigate } from "react-router-dom";
+import { MyContext } from "../../context/Mycontext";
 import {
   Box,
   Typography,
@@ -9,7 +10,8 @@ import {
   DialogContent,
   Button,
 } from "@mui/material";
-import { ToastContainer, toast } from "react-toastify";
+// import { ToastContainer, toast } from "react-toastify";
+import toast, { Toaster } from "react-hot-toast";
 import banner from "../../assets/banner.png";
 import reward from "../../assets/reward1.png";
 import { DailyReward, UserLogin } from "../../ApiConfig";
@@ -28,32 +30,32 @@ function Games() {
   const [open, setOpen] = useState(false);
   const [rewardClaimed, setRewardClaimed] = useState(false);
   const [activeRewardPoints, setActiveRewardPoints] = useState(0);
+const { data, setData } = useContext(MyContext);
 
   const games = [{ id: 1, title: "String Racing", players: "1M+ players" }];
 
-//    const url = window.location.href;
-//     const urlObj = new URL(url);
-//      console.log("url",url);
-//      console.log("urlObj",urlObj);
+  const url = window.location.href;
+  const urlObj = new URL(url);
+  console.log("url", url);
+  console.log("urlObj", urlObj);
 
-//  // Get Telegram user info
-//   const first_name = window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name;
-//   const id = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-//   const photo_url = window.Telegram?.WebApp?.initDataUnsafe?.user?.photo_url;
-// const referalId = urlObj.searchParams.get("tgWebAppStartParam");
+  // Get Telegram user info
+  // const first_name = window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name;
+  // const id = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+  // const photo_url = window.Telegram?.WebApp?.initDataUnsafe?.user?.photo_url;
+  // const referalId = urlObj.searchParams.get("tgWebAppStartParam");
 
-//   console.log("referalId", referalId);
+  // console.log("referalId", referalId);
 
-
-//   console.log("Telegram User Info:", { first_name, id, photo_url });
-//   console.log("Window Telegram Object:", window.Telegram);
+  // console.log("Telegram User Info:", { first_name, id, photo_url });
+  // console.log("Window Telegram Object:", window.Telegram);
 
   // Uncomment for testing
   const first_name = "Vamsi Boyana";
   const id = 129999911;
   const photo_url =
     "https://t.me/i/userpic/320/iz6lI6dEqbVuiGYhAu0L_-K3a0th5f5WsCOeHD4UsUg.svg";
-  const referalId = 312324234523
+  const referalId = 31232423
   console.log("referalId", referalId);
 
   // Add global error handlers
@@ -78,6 +80,17 @@ function Games() {
     };
   }, []);
 
+  useEffect(() => {
+    const inputs = document.querySelectorAll("input, select, textarea");
+    inputs.forEach((input) => {
+      input.addEventListener("focus", () => {
+        setTimeout(() => {
+          input.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 300); // Delay slightly to wait for keyboard
+      });
+    });
+  }, []);
+
   // Handle login
   const handleLogin = useCallback(async () => {
     console.log("Starting login process...");
@@ -86,7 +99,7 @@ function Games() {
         chatId: id,
         username: first_name,
         profilepic: photo_url,
-        referalId: referalId,
+        // referalId: referalId,
       });
 
       console.log("Login API Responseeeee:", response);
@@ -95,13 +108,14 @@ function Games() {
 
       if (response.status === 200) {
         const receivedToken = response.data.token;
+        setData(receivedToken)
         console.log("Received Token:", receivedToken);
-        localStorage.setItem("stringToken", receivedToken);
+        localStorage.setItem("upToken", receivedToken);
         localStorage.setItem("userId", response.data.user.id);
 
         // Store initial balance
         const initialBalance = response.data.user.points || 0;
-        localStorage.setItem("userBalance", initialBalance.toString());
+        // localStorage.setItem("userBalance", initialBalance.toString());
 
         // Create and dispatch login success event with balance
         const loginEvent = new CustomEvent("userLoggedIn", {
@@ -131,7 +145,7 @@ function Games() {
 
         setIsAuthenticated(true);
         setIsLoginLoading(false);
-        toast.success("Login successful!");
+        // toast.success("Login successful!");
         console.log("Login successful, state updated");
       } else {
         console.error("Unexpected login status:", response.status);
@@ -139,7 +153,7 @@ function Games() {
         setIsLoginLoading(false);
       }
     } catch (error) {
-            localStorage.clear();
+      localStorage.clear();
       console.error("Login error details:", {
         message: error.message,
         response: error.response?.data,
@@ -154,7 +168,8 @@ function Games() {
   // Check authentication on mount
   useEffect(() => {
     console.log("Checking authentication on mount...");
-    const storedToken = localStorage.getItem("stringToken");
+    const storedToken = data;
+    // const storedToken = localStorage.getItem("upToken");
     console.log("Stored token:", storedToken ? "exists" : "not found");
 
     if (storedToken) {
@@ -199,13 +214,16 @@ function Games() {
     }
     try {
       const userId = localStorage.getItem("userId");
-      const token = localStorage.getItem("stringToken");
+      // const token = localStorage.getItem("upToken");
+      console.log("context",data);
+      
+      const token = data.token;
       console.log("Claiming reward for user:", userId);
 
       const response = await axios.post(
         `${DailyReward}/${userId}`,
         {},
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${data}` } }
       );
       console.log("Reward claim response:", response.data);
 
@@ -496,20 +514,6 @@ function Games() {
           </Box>
         </DialogContent>
       </Dialog>
-
-      <ToastContainer
-        position="top-center"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="dark"
-        style={{ marginTop: "80px", zIndex: 9999 }}
-      />
     </Box>
   );
 }

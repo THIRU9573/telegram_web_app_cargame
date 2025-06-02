@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect ,useContext} from "react";
+import { MyContext } from "../../context/Mycontext";
 import axios from "axios";
 import {
   Box,
@@ -38,11 +39,14 @@ export default function TasksPage() {
   const [activeAdId, setActiveAdId] = useState(null);
   const [adCountdown, setAdCountdown] = useState(0);
   const userId = localStorage.getItem("userId");
+  const {data} = useContext(MyContext);
   const { updateUserBalance } = useUser();
 
   const fetchData = async () => {
-    const stringToken = localStorage.getItem("stringToken");
-    if (!stringToken) {
+    console.log("datainTasks",data);
+    
+    const upToken = localStorage.getItem("upToken");
+    if (!upToken) {
       setError("Unauthorized: No authentication token found.");
       setLoading(false);
       return;
@@ -52,8 +56,9 @@ export default function TasksPage() {
       // First fetch completed tasks
       let completedTaskIds = [];
       try {
+          const userId = localStorage.getItem("userId");
         const completedTasksResponse = await axios.get(`${GetCompletedTasks}/${userId}`, {
-          headers: { Authorization: `Bearer ${stringToken}` },
+          headers: { Authorization: `Bearer ${localStorage.getItem("upToken")}` },
         });
         completedTaskIds = completedTasksResponse.data.completedTasks?.map(task => task.taskId) || [];
       } catch (error) {
@@ -64,7 +69,7 @@ export default function TasksPage() {
 
       // Then fetch all tasks
       const tasksResponse = await axios.get(`${AllTasks}/${userId}`, {
-        headers: { Authorization: `Bearer ${stringToken}` },
+        headers: { Authorization: `Bearer ${localStorage.getItem("upToken")}` },
       });
 
       // Mark tasks as completed based on the completed tasks data
@@ -84,7 +89,7 @@ export default function TasksPage() {
 
       // Fetch ads
       const adsResponse = await axios.get(`${AllAds}/${userId}`, {
-        headers: { Authorization: `Bearer ${stringToken}` },
+        headers: { Authorization: `Bearer ${localStorage.getItem("upToken")}` },
       });
 
       const adsData = adsResponse.data.data || adsResponse.data.ads || adsResponse.data;
@@ -109,7 +114,9 @@ export default function TasksPage() {
   };
 
  const completeTask = async (taskId) => {
-    const stringToken = localStorage.getItem("stringToken");
+    const upToken = localStorage.getItem("upToken");
+      const userId = localStorage.getItem("userId");
+
     const task = tasks.find((t) => t._id === taskId);
 
     if (!task) return;
@@ -123,7 +130,7 @@ export default function TasksPage() {
         },
         {
           headers: {
-            Authorization: `Bearer ${stringToken}`,
+            Authorization: `Bearer ${localStorage.getItem("upToken")}`,
           },
         }
       );
@@ -148,7 +155,7 @@ export default function TasksPage() {
         });
 
         // Update global balance state
-        await updateUserBalance();
+        // await updateUserBalance();
 
         // Dispatch event for legacy components
         window.dispatchEvent(
@@ -174,7 +181,8 @@ export default function TasksPage() {
 
 
   const completeAd = async (adId) => {
-    const stringToken = localStorage.getItem("stringToken");
+      const userId = localStorage.getItem("userId");
+    const upToken = localStorage.getItem("upToken");
     const ad = ads.find((a) => a._id === adId);
 
     if (!ad) return;
@@ -192,7 +200,7 @@ export default function TasksPage() {
         },
         {
           headers: {
-            Authorization: `Bearer ${stringToken}`,
+            Authorization: `Bearer ${localStorage.getItem("upToken")}`,
           },
         }
       );
@@ -219,8 +227,9 @@ export default function TasksPage() {
   };
 
   const fetchCompletedTasks = async () => {
-    const stringToken = localStorage.getItem("stringToken");
-    if (!stringToken) {
+      const userId = localStorage.getItem("userId");
+    const upToken = localStorage.getItem("upToken");
+    if (!upToken) {
       setError("Unauthorized: No authentication token found.");
       return;
     }
@@ -229,7 +238,7 @@ export default function TasksPage() {
       let completedTaskIds = [];
       try {
         const response = await axios.get(`${GetCompletedTasks}/${userId}`, {
-          headers: { Authorization: `Bearer ${stringToken}` },
+          headers: { Authorization: `Bearer ${localStorage.getItem("upToken")}` },
         });
         const completedTasks = response.data.completedTasks || [];
         completedTaskIds = completedTasks.map((task) => task.taskId);
@@ -393,11 +402,22 @@ export default function TasksPage() {
       if (window.show_8692316 && typeof window.show_8692316 === "function") {
         await window.show_8692316();
       }
-      setActiveTaskId(task._id);
-      setCountdown(15);
+      
+      // For Main Tasks and String Tasks, complete immediately after ad
+      if (task.TaskName === "Main Task" || task.TaskName === "String Task") {
+        await completeTask(task._id);
+      } else {
+        // For Other Tasks, show countdown
+        setActiveTaskId(task._id);
+        setCountdown(15);
+      }
     } catch (error) {
-      setActiveTaskId(task._id);
-      setCountdown(15);
+      if (task.TaskName === "Main Task" || task.TaskName === "String Task") {
+        await completeTask(task._id);
+      } else {
+        setActiveTaskId(task._id);
+        setCountdown(15);
+      }
     }
   };
 
@@ -408,11 +428,15 @@ export default function TasksPage() {
       if (window.show_8692316 && typeof window.show_8692316 === "function") {
         await window.show_8692316();
       }
+      // Complete the ad first
+      await completeAd(ad._id);
+      // Then set up the countdown timer
       setActiveAdId(ad._id);
-      // Convert minutes to seconds for countdown
       const timerInSeconds = (ad.AdTimer_InMinutes || 0.5) * 60; // Default to 30 seconds if not provided
       setAdCountdown(Math.floor(timerInSeconds));
     } catch (error) {
+      console.error("Error handling ad click:", error);
+      // Set up countdown even if there's an error
       setActiveAdId(ad._id);
       const timerInSeconds = (ad.AdTimer_InMinutes || 0.5) * 60;
       setAdCountdown(Math.floor(timerInSeconds));
@@ -659,7 +683,7 @@ export default function TasksPage() {
                               zIndex: 1,
                             }}
                           >
-                            <CircularProgress
+                            {/* <CircularProgress
                               variant="determinate"
                               value={
                                 ((ad.AdTimer_InMinutes * 60 - adCountdown) /
@@ -669,7 +693,7 @@ export default function TasksPage() {
                               size={{ xs: 50, sm: 60 }}
                               thickness={4}
                               sx={{ color: "#FFC107" }}
-                            />
+                            /> */}
                             <Typography
                               variant="h6"
                               sx={{
@@ -872,13 +896,13 @@ export default function TasksPage() {
                               zIndex: 1,
                             }}
                           >
-                            <CircularProgress
+                            {/* <CircularProgress
                               variant="determinate"
                               value={(15 - countdown) * (100 / 15)}
                               size={60}
                               thickness={4}
                               sx={{ color: "#FFC107" }}
-                            />
+                            /> */}
                             <Typography
                               variant="h6"
                               sx={{

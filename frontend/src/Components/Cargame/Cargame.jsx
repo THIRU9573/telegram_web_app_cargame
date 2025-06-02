@@ -110,7 +110,7 @@ export default function Cargame() {
   const [adWatchesLeft, setAdWatchesLeft] = useState(1);
   const [ticketBalance, setTicketBalance] = useState(0);
   const [minBet, setMinBet] = useState(200);
-  const [maxBet, setMaxBet] = useState(500);
+  // const [maxBet, setMaxBet] = useState(500);
 
   // Update the score ref whenever the score state changes
   useEffect(() => {
@@ -318,10 +318,10 @@ export default function Cargame() {
       return;
     }
 
-    if (bet > maxBet) {
-      setError(`Maximum bet amount is ${maxBet}`);
-      return;
-    }
+    // if (bet > maxBet) {
+    //   setError(`Maximum bet amount is ${maxBet}`);
+    //   return;
+    // }
 
     if (bet > ticketBalance) {
       setError("Insufficient balance");
@@ -372,7 +372,7 @@ export default function Cargame() {
 
         setCategoryData(response.data.data.level);
         setMinBet(response.data.data.min || 200);
-        setMaxBet(response.data.data.max || 500);
+        // setMaxBet(response.data.data.max || 500);
         console.log(response.data.data.min, response.data.data.max);
         console.log(
           "AdswatchesLeft",
@@ -877,6 +877,25 @@ export default function Cargame() {
     };
   }, [splashActive, splashPosition]);
 
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Store the last timestamp when tab loses focus
+        gameStateRef.current.lastFocusTimestamp = gameStateRef.current.lastTimestamp;
+      } else {
+        // When tab regains focus, update the last timestamp to prevent huge time jumps
+        if (gameStateRef.current.lastFocusTimestamp) {
+          gameStateRef.current.lastTimestamp = performance.now();
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   const startGameLoop = () => {
     // const savedGameState = JSON.parse(localStorage.getItem("gameState"));
     const savedGameState = currentGameStateRef.current;
@@ -921,16 +940,21 @@ export default function Cargame() {
       if (!gameStateRef.current.gameRunning) return;
 
       const deltaTime = timestamp - gameStateRef.current.lastTimestamp;
+      
+      // Cap the maximum time delta to prevent huge jumps
+      const MAX_DELTA_TIME = 1000; // 1 second maximum
+      const cappedDeltaTime = Math.min(deltaTime, MAX_DELTA_TIME);
+      
       gameStateRef.current.lastTimestamp = timestamp;
 
-      // Update score and score ref
+      // Update score and score ref using capped delta time
       setScore((prev) => {
-        const newScore = prev + Math.floor(deltaTime / 100);
+        const newScore = prev + Math.floor(cappedDeltaTime / 100);
         currentScoreRef.current = newScore;
         return newScore;
       });
 
-      updateGame(deltaTime);
+      updateGame(cappedDeltaTime);
       drawGame(ctx);
 
       gameStateRef.current.animationFrameId = requestAnimationFrame(gameLoop);
@@ -992,18 +1016,15 @@ export default function Cargame() {
     gameStateRef.current.totalDistance += roadSpeed * (deltaTime / 1000);
 
     // Check level progression FIRST (before collision checks)
-    const newLevel = Math.floor(
-      gameStateRef.current.totalDistance / levelDistance
-    );
-    if (newLevel > stage) {
+    const newLevel = Math.floor(gameStateRef.current.totalDistance / levelDistance) + 1; // Add 1 to start from level 1
+    if (newLevel > stage && newLevel <= categoryData.length) {
       setStage(newLevel);
-      // Check if player reached the max level (levelData.length)
-      if (newLevel >= categoryData.length) {
+      // Check if player reached the max level
+      if (newLevel === categoryData.length) {
         // Use the current score ref for the most up-to-date score
         console.log("Game won with score:", currentScoreRef.current);
         handleGameLose();
         setGameWon(true);
-
         endGame(); // End the game when player wins
         return; // Exit early to prevent further updates
       }
@@ -1467,6 +1488,16 @@ export default function Cargame() {
       return;
     }
 
+    // Store current game state before showing ad
+    const currentGameState = {
+      score: currentScoreRef.current,
+      lives: lifeLeft,
+      stage: currentLevel,
+      totalDistance: gameStateRef.current.totalDistance,
+      adWatchesLeft: adWatchesLeft - 1,
+    };
+    currentGameStateRef.current = currentGameState;
+
     // Pause the game immediately
     gameStateRef.current.gameRunning = false;
     if (gameStateRef.current.animationFrameId) {
@@ -1496,17 +1527,10 @@ export default function Cargame() {
       // Execute the ad function from the window object
       const adFunctionName = adFunction.replace('()', '');
       if (window[adFunctionName] && typeof window[adFunctionName] === 'function') {
-        // Store current game state before showing ad
-        const currentGameState = {
-          score: currentScoreRef.current,
-          lives: lifeLeft,
-          stage: currentLevel,
-          totalDistance: gameStateRef.current.totalDistance,
-          adWatchesLeft: newAdWatchesLeft,
-        };
-        currentGameStateRef.current = currentGameState;
-
         console.log(`Calling ad function: ${adFunctionName}`);
+        
+        // Ensure game over state is false before starting ad
+        setGameOver(false);
         
         // Call the ad function
         window[adFunctionName]()
@@ -1517,11 +1541,31 @@ export default function Cargame() {
             gameStateRef.current.obstacleCars = [];
             potholesRef.current = [];
 
-            // Close the game over dialog
-            setGameOver(false);
+            // Reset game state for resuming
+            gameStateRef.current.gameRunning = true;
+            gameStateRef.current.lastTimestamp = performance.now();
 
-            // Restart game loop from where it was paused
-            startGameLoop();
+            // Start the game loop
+            const gameLoop = (timestamp) => {
+              if (!gameStateRef.current.gameRunning) return;
+
+              const deltaTime = timestamp - gameStateRef.current.lastTimestamp;
+              gameStateRef.current.lastTimestamp = timestamp;
+
+              // Update score and score ref
+              setScore((prev) => {
+                const newScore = prev + Math.floor(deltaTime / 100);
+                currentScoreRef.current = newScore;
+                return newScore;
+              });
+
+              updateGame(deltaTime);
+              drawGame(canvasRef.current.getContext("2d"));
+
+              gameStateRef.current.animationFrameId = requestAnimationFrame(gameLoop);
+            };
+
+            gameStateRef.current.animationFrameId = requestAnimationFrame(gameLoop);
           })
           .catch((error) => {
             console.error(`Error watching ad ${currentAdIndex + 1}:`, error);
@@ -1629,7 +1673,7 @@ export default function Cargame() {
               bgcolor: "#0072B7",
               color: "#ffffff",
               border: "4px solid #29A4BF",
-              width: "300px",
+              width: "200px",
               height: "60px",
               fontFamily: "Inter",
               "&:hover": {
@@ -1637,7 +1681,7 @@ export default function Cargame() {
               },
               px: 6,
               py: 2,
-              fontSize: "48px",
+              fontSize: "38px",
               fontWeight: "bold",
               borderRadius: "12px",
               marginBottom: "80px",
@@ -1659,7 +1703,7 @@ export default function Cargame() {
             textAlign:"center"
           }}
         >
-          Enter Amount to Play
+          Enter Plotform fee
         </DialogTitle>
         <DialogContent sx={{ backgroundColor: "black", padding: "20px" }}>
           <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
@@ -1670,7 +1714,7 @@ export default function Cargame() {
           <TextField
             autoFocus
             margin="dense"
-            label={`Enter Amount (${minBet}-${maxBet})`}
+            label={`Enter plotform fee ${minBet}`}
             type="number"
             fullWidth
             variant="outlined"
@@ -1764,7 +1808,7 @@ export default function Cargame() {
           Score: {score}
         </Typography>
         {/* <Typography variant="subtitle1">High Score: {highScore}</Typography> */}
-        <Typography variant="subtitle1" sx={{fontSize:"17px"}}>Levels: {stage}</Typography>
+        <Typography variant="subtitle1" sx={{fontSize:"17px"}}>Level: {stage}</Typography>
       </Box>
 
       {/* Game canvas container */}
@@ -1859,14 +1903,14 @@ export default function Cargame() {
             sx: {
               bgcolor: "#001f3f",
               color: "#ffd700",
-              borderRadius: "8px",
+              borderRadius: "12px",
               border: "2px solid #4CAF50",
-              maxWidth: "280px",
+              maxWidth: "320px",
               margin: "0 auto"
             },
           }}
         >
-          <DialogContent sx={{ p: 2 }}>
+          <DialogContent sx={{ p: 3 }}>
             <Box
               sx={{
                 display: "flex",
@@ -1883,14 +1927,14 @@ export default function Cargame() {
                 variant="h6"
                 component="div"
                 gutterBottom
-                sx={{ fontWeight: "bold", color: "#4CAF50", fontSize: "18px", mb: 1 }}
+                sx={{ fontWeight: "bold", color: "#4CAF50", fontSize: "24px", mb: 2 }}
               >
                 You Won!
               </Typography>
-              <Typography variant="body1" sx={{ fontSize: "14px", mb: 1 }}>
+              <Typography variant="body1" sx={{ fontSize: "18px", mb: 2 }}>
                 Final Score: {currentScoreRef.current}
               </Typography>
-              <Typography variant="body2" sx={{ fontSize: "12px", color: "#4CAF50" }}>
+              <Typography variant="body2" sx={{ fontSize: "16px", color: "#4CAF50" }}>
                 All levels completed!
               </Typography>
             </Box>
@@ -1898,13 +1942,13 @@ export default function Cargame() {
           <DialogActions
             sx={{
               justifyContent: "center",
-              p: 1,
+              p: 2,
             }}
           >
             <Button
               onClick={exitGame}
               variant="contained"
-              size="small"
+              size="medium"
               sx={{
                 bgcolor: "#4CAF50",
                 color: "#fff",
@@ -1912,10 +1956,10 @@ export default function Cargame() {
                   bgcolor: "#45a049",
                 },
                 fontWeight: "bold",
-                py: 0.5,
-                px: 3,
-                fontSize: "14px",
-                minWidth: "120px"
+                py: 1,
+                px: 4,
+                fontSize: "16px",
+                minWidth: "140px"
               }}
             >
               Exit
@@ -1934,21 +1978,21 @@ export default function Cargame() {
               bgcolor: "#001f3f",
               color: "#ffffff",
               fontFamily: "Inter",
-              borderRadius: "8px",
+              borderRadius: "12px",
               border: "2px solid #41B3C8",
-              maxWidth: "280px",
+              maxWidth: "320px",
               margin: "0 auto"
             },
           }}
         >
-          <DialogContent sx={{ p: 2 }}>
+          <DialogContent sx={{ p: 2, pb: 1 }}>
             <Box
               sx={{
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
                 color: "#ffffff",
-                py: 1,
+                py: 0.5,
                 textAlign: "center",
               }}
             >
@@ -1956,18 +2000,18 @@ export default function Cargame() {
                 variant="h6"
                 component="div"
                 gutterBottom
-                sx={{ fontWeight: "bold", fontSize: "18px", mb: 1 }}
+                sx={{ fontWeight: "bold", fontSize: "24px", mb: 1 }}
               >
                 Game Over!
               </Typography>
-              <Typography variant="body1" sx={{ fontSize: "14px", mb: 0.5 }}>
+              <Typography variant="body1" sx={{ fontSize: "18px", mb: 0.5 }}>
                 Score: {currentScoreRef.current}
               </Typography>
-              <Typography variant="body2" sx={{ fontSize: "12px", mb: 1 }}>
+              <Typography variant="body2" sx={{ fontSize: "16px", mb: 0.5 }}>
                 {lifeLeft <= 0 ? "No lives left!" : "You crashed!"}
               </Typography>
               {adWatchesLeft > 0 && (
-                <Typography variant="body2" sx={{ fontSize: "12px", color: "#41B3C8" }}>
+                <Typography variant="body2" sx={{ fontSize: "16px", color: "#41B3C8", mb: 0.5 }}>
                   Watch ad to continue ({adWatchesLeft})
                 </Typography>
               )}
@@ -1977,26 +2021,26 @@ export default function Cargame() {
             sx={{
               justifyContent: "center",
               p: 1,
-              gap: 1,
+              gap: 2,
             }}
           >
             <Button
               onClick={playAgain}
               variant="contained"
-              size="small"
+              size="medium"
               sx={{
                 backgroundColor: "#041821",
                 border: "2px solid #0C3648",
-                borderRadius: "4px",
-                py: 0.5,
-                px: 2,
-                fontSize: "13px",
+                borderRadius: "6px",
+                py: 0.75,
+                px: 3,
+                fontSize: "12px",
                 color: "#3A9FD0",
                 "&:hover": {
                   backgroundColor: "#094159",
                   border: "2px solid #41B3C8",
                 },
-                minWidth: "100px"
+                minWidth: "120px"
               }}
             >
               Play Again
@@ -2005,20 +2049,20 @@ export default function Cargame() {
               <Button
                 onClick={watchAdHandler}
                 variant="contained"
-                size="small"
+                size="medium"
                 sx={{
                   backgroundColor: "#041821",
                   border: "2px solid #0C3648",
-                  borderRadius: "4px",
-                  py: 0.5,
-                  px: 2,
-                  fontSize: "13px",
+                  borderRadius: "6px",
+                  py: 0.75,
+                  px: 3,
+                  fontSize: "12px",
                   color: "#3A9FD0",
                   "&:hover": {
                     backgroundColor: "#094159",
                     border: "2px solid #41B3C8",
                   },
-                  minWidth: "100px"
+                  minWidth: "120px"
                 }}
               >
                 Watch Ad

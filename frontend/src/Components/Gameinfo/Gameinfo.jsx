@@ -41,7 +41,11 @@ function GameInfo() {
   const [error, setError] = useState("");
 
   const handlePlayNow = () => {
-    // setOpen(true);
+    // Clear any existing game state from localStorage
+    localStorage.removeItem("currentGameHistoryId");
+    // Set a flag in localStorage to indicate new game
+    localStorage.setItem("isNewGame", "true");
+    // Navigate to the game
     navigate("/games/car");
   };
 
@@ -140,6 +144,7 @@ function GameInfo() {
                 fontSize: { xs: "1rem", sm: "1.25rem", md: "1.5rem" },
                 color: "#3A9FD0",
                 gap: "10px",
+                width: "160px",
                 "&:hover": {
                   backgroundColor: "#094159",
                   border: "3px solid #41B3C8",

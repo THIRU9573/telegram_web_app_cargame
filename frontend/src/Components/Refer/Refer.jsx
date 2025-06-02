@@ -1,18 +1,22 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect ,useContext} from "react";
+import { MyContext } from "../../context/Mycontext";
 import { Box, Typography, Button, Avatar, Grid } from "@mui/material";
 import { Group, ContentCopy } from "@mui/icons-material"; // Using Group icon for 4 people
 import coin from "../../assets/coin.png";
 import axios from "axios"; // Added axios import which was missing
 import { UserProfile, GetReferralReward } from "../../ApiConfig";
 import bgimage from "../../assets/bg1.png";
-import { toast } from "react-toastify";
+// import { ToastContainer, toast } from "react-toastify";
+// import { Toaster } from "react-hot-toast";
+import toast, { Toaster } from "react-hot-toast";
+
 
 export default function InvitePage() {
   const [referralLink, setReferralLink] = useState("");
   const [referralReward, setReferralReward] = useState([]);
   const [loading, setLoading] = useState(true);
+  const {data} = useContext(MyContext);
   const userId = localStorage.getItem("userId");
-  
   // Add necessary state variables for telegram sharing
   // const [botname] = useState("your_bot_name"); // Replace with your actual bot name
   // const [chatId] = useState(userId);
@@ -26,9 +30,12 @@ export default function InvitePage() {
   useEffect(() => {
     const fetchReferralLink = async () => {
       try {
+        console.log("datainRefer",data);
+        
+          const userId = localStorage.getItem("userId");
         const response = await axios.get(`${UserProfile}/${userId}`, {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("stringToken")}`,
+            Authorization: `Bearer ${localStorage.getItem("upToken")}`,
           },
         });
         console.log(response.data.user.referralLink);
@@ -43,9 +50,10 @@ export default function InvitePage() {
 
     const fetchReferralReward = async () => {
       try {
+                  const userId = localStorage.getItem("userId");
         const referralresponse = await axios.get(`${GetReferralReward}/${userId}`, {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("stringToken")}`,
+            Authorization: `Bearer ${localStorage.getItem("upToken")}`,
           },
         });
         
@@ -191,14 +199,15 @@ export default function InvitePage() {
       <Box sx={{ display: "flex", width: "100%" }}>
         <Button
           variant="contained"
-          sx={{
+           sx={{
             backgroundColor: "#03415D",
             fontWeight: "600",
             fontSize: "1rem",
             color: "white",
             margin: "10px",
+            border: "4px solid #29A4BF",
             "&:hover": {
-              backgroundColor: "#e91e63",
+              backgroundColor: "#1976d2",
             },
             width: "45%",
           }}

@@ -19,4 +19,5 @@ export const GetReferralReward = `${Base_url}/getReferralReward`
 export const WithdrawRequest = `${Base_url}/withdrawRequest`
 export const GetWithdrawHistory = `${Base_url}/getWithdrawStatus`
 export const WithdrawLimits = `${Base_url}/getUserWithdrawalLimits`
+export const TicketConvertion = `${Base_url}/getUserTicketConvertion`
 

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect,useContext } from "react";
+import { MyContext } from "../../context/Mycontext";
 import axios from "axios";
 import {
   Box,
@@ -16,6 +17,7 @@ import {
   Select,
   MenuItem,
 } from "@mui/material";
+import InputAdornment from "@mui/material/InputAdornment";
 import CreateOutlinedIcon from "@mui/icons-material/CreateOutlined";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import {
@@ -23,6 +25,7 @@ import {
   UserProfile,
   WithdrawRequest,
   GetWithdrawHistory,
+  TicketConvertion,
   WithdrawLimits,
 } from "../../ApiConfig";
 import { useNavigate } from "react-router-dom";
@@ -30,7 +33,8 @@ import { useUser } from "../../context/UserContext";
 import profileimg from "../../assets/profileimg.png";
 import bg1 from "../../assets/bg1.png";
 import coin from "../../assets/coin.png";
-import { ToastContainer, toast } from "react-toastify";
+// import { ToastContainer, toast } from "react-toastify";
+ import toast, { Toaster } from "react-hot-toast";
 import "react-toastify/dist/ReactToastify.css";
 
 const ProfilePage = () => {
@@ -40,16 +44,25 @@ const ProfilePage = () => {
   const [openEdit, setOpenEdit] = useState(false);
   const [editedUsername, setEditedUsername] = useState("");
   const [withdraw, setWithdraw] = useState(false);
-  const [choosenetwork, setChoosenetwork] = useState("");
+  const [network, setNetwork] = useState("");
+  // const [choosenetwork, setChoosenetwork] = useState("");
   const [withdrawAmount, setWithdrawAmount] = useState("");
-  const [walletid, setWalletId] = useState("");
+  const [walletAddress, setWalletAddress] = useState("");
+  // const [walletid, setWalletId] = useState("");
   const [dialogView, setDialogView] = useState("withdraw");
   const [withdrawHistory, setWithdrawHistory] = useState([]);
   const [minWithdrawal, setMinWithdrawal] = useState(null);
   const [maxWithdrawal, setMaxWithdrawal] = useState(null);
+  const [usdtAmount, setUsdtAmount] = useState(0);
+  const [ticketQuantity, setTicketQuantity] = useState(0)
   const navigate = useNavigate();
   const { updateUserBalance } = useUser();
   const userId = localStorage.getItem("userId");
+    const { data } = useContext(MyContext);
+
+
+  // Add this line to check if any dialog is open
+  const isAnyDialogOpen = openEdit || withdraw;
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -64,7 +77,9 @@ const ProfilePage = () => {
       }
 
       try {
-        const token = localStorage.getItem("stringToken");
+        console.log("datainProfile",data);
+        
+        const token = localStorage.getItem("upToken");
         // const headers = {
         //   Authorization: `Bearer ${token}`,
         // };
@@ -105,13 +120,12 @@ const ProfilePage = () => {
       console.log("Fetching withdraw limits for userId:", userId);
       const response = await axios.get(`${WithdrawLimits}/${userId}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("stringToken")}`,
+          Authorization: `Bearer ${localStorage.getItem("upToken")}`,
         },
       });
-console.log("Fetching withdraw limits",response);
-
-      setMinWithdrawal(response.data.data[0].minWithdrawal);
-      setMaxWithdrawal(response.data.data[0].maxWithdrawal);
+      console.log("Fetching withdraw limits",response);
+      setMinWithdrawal(response.data.data.minWithdrawal);
+      setMaxWithdrawal(response.data.data.maxWithdrawal);
     } catch (error) {
       console.error("Failed to fetch withdraw Limits:", {
         error: error,
@@ -120,6 +134,44 @@ console.log("Fetching withdraw limits",response);
       });
     }
   };
+
+  const fetchTicketConvertion = async () => {
+    console.log("tokenin Profile",localStorage.getItem("upToken"));
+    console.log("userIdin Profile",localStorage.getItem("userId"));
+    
+    const userId = localStorage.getItem("userId");
+
+    if (!userId) {
+      console.warn("User not logged in — skipping TicketConvertion fetch");
+      return;
+    }
+    try {
+      const response = await axios.get(`${TicketConvertion}/${userId}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("upToken")}`,
+        },
+      });
+      // console.log("AmountInToken",response.data.data[0]);
+      console.log("ticketConvertion",response,response.data.data.AmountInToken,response.data.data.TicketQuantity);
+      
+      setUsdtAmount(response.data.data.AmountInToken);
+      setTicketQuantity(response.data.data.TicketQuantity);
+      //  setDefaultAdminWallet(response.data.data[0].DefaultAdminWallet);
+      // console.log(
+      //   "TicketConvertion response:",
+      //   response.data.data.AmountInToken
+      // );
+      // console.log(
+      //   "TicketConvertion response:",
+      //   response.data.data.TicketQuantity
+      // );
+      // console.log("TicketConvertion response:", response.data.data[0].DefaultAdminWallet);
+      // Update state if needed here
+    } catch (error) {
+      console.error("Fetch ticket conversion error:", error);
+    }
+  };
+
 
   const handleWithdraw = async () => {
     try {
@@ -169,36 +221,41 @@ console.log("Fetching withdraw limits",response);
         `${WithdrawRequest}/${userId}`,
         {
           amount: amount,
-          network: choosenetwork || "SOL",
-          walletAddress: walletid || "random-wallet-id-12345",
+          token: network || "SOL",
+          walletAddress: walletAddress || "random-wallet-id-12345",
         },
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("stringToken")}`,
+            Authorization: `Bearer ${localStorage.getItem("upToken")}`,
             "Content-Type": "application/json",
           },
         }
       );
-
+      updateUserBalance(); // Update global balance state
       console.log("Withdrawal response:", response);
 
       if (response.data.message) {
         console.log("Withdrawal successful:", response.data.message);
         toast.success("Withdrawal request sent successfully!");
         setWithdraw(false);
-        setChoosenetwork("");
+        setNetwork("");
         setWithdrawAmount("");
-        setWalletId("");
+        setWalletAddress("");
 
         // Refresh profile data and update global balance
         const profileResponse = await axios.get(`${UserProfile}/${userId}`, {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("stringToken")}`,
+            Authorization: `Bearer ${localStorage.getItem("upToken")}`,
           },
         });
         console.log("Updated profile data:", profileResponse.data);
         setProfile(profileResponse.data.user);
         updateUserBalance(); // Update global balance state
+        // After successful withdrawal API call
+window.dispatchEvent(new CustomEvent("pointsUpdated", {
+  detail: { points: -amount }
+}));
+
       } else {
         console.error("Unexpected response format:", response.data);
         toast.error("Unexpected response from server");
@@ -225,7 +282,7 @@ console.log("Fetching withdraw limits",response);
         { username: editedUsername },
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("stringToken")}`,
+            Authorization: `Bearer ${localStorage.getItem("upToken")}`,
             "Content-Type": "application/json",
           },
         }
@@ -251,7 +308,7 @@ console.log("Fetching withdraw limits",response);
       console.log("Fetching withdraw history for userId:", userId);
       const response = await axios.get(`${GetWithdrawHistory}/${userId}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("stringToken")}`,
+          Authorization: `Bearer ${localStorage.getItem("upToken")}`,
         },
       });
 
@@ -311,11 +368,16 @@ console.log("Fetching withdraw limits",response);
   const wonCount = stats.filter((result) => result === "WON").length;
 
   return (
-    <Box sx={styles.mainContainer}>
+    <Box sx={{
+      ...styles.mainContainer,
+      filter: isAnyDialogOpen ? 'blur(5px)' : 'none',
+      transition: 'filter 0.3s ease-in-out',
+      pointerEvents: isAnyDialogOpen ? 'none' : 'auto'
+    }}>
       {/* Profile Header */}
       <Box sx={styles.profileHeader}>
         <Avatar
-          src={window.Telegram?.WebApp?.initDataUnsafe?.user?.photo_url}
+          src={window.Telegram?.WebApp?.initDataUnsafe?.user?.photo_url || profileimg}
           alt="Profile"
           sx={profileimg}
         />
@@ -346,15 +408,20 @@ console.log("Fetching withdraw limits",response);
         </Card>
         <Typography sx={styles.walletTitle}>WALLET</Typography>
         <Card sx={styles.statCard}>
-          <Typography sx={styles.statValue}>
-            {profile.ticketBalance || 0}
+          <Typography   sx={styles.statText} > 
+             Balance : 
           </Typography>
-          <img src={coin} alt="coin" style={styles.coinIcon} />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Typography sx={styles.statValue}>
+              {profile.ticketBalance || 0}
+            </Typography>
+            <img src={coin} alt="coin" style={styles.coinIcon} />
+          </Box>
         </Card>
       </Box>
 
       {/* Action Buttons */}
-      <Box sx={{ mt: 3, pb: "100px" }}>
+      <Box sx={{ mt: 3, pb: "100px", display:"flex" ,flexDirection:"column",alignItems:"center" }}>
         <Button
           variant="outlined"
           sx={styles.actionButton}
@@ -363,17 +430,27 @@ console.log("Fetching withdraw limits",response);
         >
           Referral History
         </Button>
+        <Button
+          variant="outlined"
+          sx={styles.actionButton}
+          endIcon={<ArrowForwardIcon />}
+          onClick={() =>navigate("/withdrawhistory")}
+        >
+          Withdrawal history
+        </Button>
 
         <Box sx={styles.buttonGroup}>
-          <Button variant="contained" sx={styles.depositButton}>
+          {/* <Button variant="contained" sx={styles.depositButton}>
             DEPOSIT
-          </Button>
+          </Button> */}
           <Button
             variant="contained"
             sx={styles.withdrawButton}
+            endIcon={<ArrowForwardIcon />}
             onClick={() => {
               setWithdraw(true);
               fetchWithdrawLimits();
+              fetchTicketConvertion();
             }}
           >
             Withdraw
@@ -486,9 +563,36 @@ console.log("Fetching withdraw limits",response);
       {/* Withdraw Dialog */}
       <Dialog
         open={withdraw}
-        onClose={() => {
+        onClose={(event, reason) => {
+          if (reason === 'backdropClick') {
+            return;
+          }
           setWithdraw(false);
           setDialogView("withdraw");
+        }}
+        // Prevent closing with escape key
+        disableEscapeKeyDown={true}
+        // Prevent auto focus on first element
+        disableAutoFocus={true}
+        // Keep backdrop visible
+        hideBackdrop={false}
+        // Add custom backdrop styles
+        BackdropProps={{
+          sx: {
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            backdropFilter: 'blur(5px)',
+          }
+        }}
+        // Add custom styles to prevent closing and disable background interactions
+        sx={{
+          '& .MuiDialog-container': {
+            '& .MuiPaper-root': {
+              pointerEvents: 'auto' // Enable interactions only on the dialog
+            },
+            '& .MuiBackdrop-root': {
+              pointerEvents: 'none' // Disable interactions on the backdrop
+            }
+          }
         }}
         PaperProps={{
           sx: {
@@ -499,7 +603,7 @@ console.log("Fetching withdraw limits",response);
             boxShadow: "0 8px 32px rgba(0, 31, 63, 0.3)",
             width: "90%",
             maxWidth: "350px",
-            maxHeight: "85vh",
+            maxHeight: "65vh",
             margin: "20px auto",
           },
         }}
@@ -528,7 +632,7 @@ console.log("Fetching withdraw limits",response);
             background: "rgba(0, 31, 63, 0.3)",
           }}
         >
-          <Button
+          {/* <Button
             onClick={() => setDialogView("withdraw")}
             sx={{
               color:
@@ -549,11 +653,13 @@ console.log("Fetching withdraw limits",response);
             }}
           >
             Withdraw
-          </Button>
-          <Button
+          </Button> */}
+          {/* <Button
+         
             onClick={() => {
               setDialogView("history");
               fetchWithdrawHistory();
+              // navigate("/withdrawhistory");
             }}
             sx={{
               color:
@@ -574,7 +680,7 @@ console.log("Fetching withdraw limits",response);
             }}
           >
             History
-          </Button>
+          </Button> */}
         </Box>
 
         <DialogContent sx={{ padding: "15px" }}>
@@ -593,8 +699,9 @@ console.log("Fetching withdraw limits",response);
                 </Typography>
                 <FormControl fullWidth>
                   <Select
-                    value={choosenetwork}
-                    onChange={(e) => setChoosenetwork(e.target.value)}
+                    value={network}
+                    onChange={(e) => setNetwork(e.target.value)}
+                    displayEmpty
                     sx={{
                       "& .MuiOutlinedInput-root": {
                         borderRadius: "8px",
@@ -610,6 +717,7 @@ console.log("Fetching withdraw limits",response);
                         color: "white !important",
                       },
                       backgroundColor: "rgba(0, 31, 63, 0.3)",
+                      backdropFilter: "blur(8px)",
                       borderRadius: "8px",
                       "& .MuiSvgIcon-root": {
                         color: "#00ffff",
@@ -621,10 +729,17 @@ console.log("Fetching withdraw limits",response);
                     MenuProps={{
                       PaperProps: {
                         sx: {
-                          backgroundColor: "rgba(0, 15, 63, 0.95)",
-                          backdropFilter: "blur(12px)",
+                          backgroundColor: "rgba(0, 15, 63, 0.3)",
+                          backdropFilter: "blur(8px)",
+                          border: "1px solid rgba(0, 255, 255, 0.2)",
                           "& .MuiMenuItem-root": {
                             color: "white",
+                            minHeight: "unset",
+                            padding: "4px 14px",
+                            fontFamily:"Inter",
+                            fontWeight:"500",
+                            fontSize:"14px",
+                            letterSpacing:"0.5px",
                             "&:hover": {
                               backgroundColor: "rgba(0, 255, 255, 0.1)",
                             },
@@ -640,9 +755,10 @@ console.log("Fetching withdraw limits",response);
                       },
                     }}
                   >
-                    <MenuItem value="SOL">SOL</MenuItem>
-                    <MenuItem value="ETH">ETH</MenuItem>
-                    <MenuItem value="USDT">USDT (TRC20)</MenuItem>
+                    <MenuItem value="" disabled>
+                    <em style={{fontFamily:"Inter",fontStyle:"normal",opacity:0.7}}>Select Network</em>
+                    </MenuItem>
+                    <MenuItem value="TON">TON</MenuItem>
                   </Select>
                 </FormControl>
               </Box>
@@ -678,6 +794,24 @@ console.log("Fetching withdraw limits",response);
                     backgroundColor: "rgba(0, 31, 63, 0.3)",
                     borderRadius: "8px",
                   }}
+                   InputProps={{
+    endAdornment: (
+      <InputAdornment position="end">
+        <Typography sx={{ color: "skyblue",
+                          fontSize:"14px",
+                          backgroundColor: "#041821",
+                          "&::selection": {
+                            backgroundColor: "rgba(0, 255, 255, 0.2)",
+                            color: "white",
+                          },
+         }}>
+           ≈{ticketQuantity
+                ? ((usdtAmount *withdrawAmount) / ticketQuantity).toFixed(4)
+                : "N/A"}{" "}USDT
+          </Typography>
+      </InputAdornment>
+    ),
+  }}
                 />
               </Box>
 
@@ -695,8 +829,8 @@ console.log("Fetching withdraw limits",response);
                 <TextField
                   fullWidth
                   variant="outlined"
-                  value={walletid}
-                  onChange={(e) => setWalletId(e.target.value)}
+                  value={walletAddress}
+                  onChange={(e) => setWalletAddress(e.target.value)}
                   sx={{
                     "& .MuiOutlinedInput-root": {
                       borderRadius: "8px",
@@ -731,10 +865,11 @@ console.log("Fetching withdraw limits",response);
               <Typography
                 variant="caption"
                 sx={{
-                  color: "rgba(255, 0, 0, 0.8)",
+                  color: "rgba(255, 255, 255, 0.7)",
                   fontSize: "12px",
                   textAlign: "center",
                   display: "block",
+                  marginBottom: "4px",
                 }}
               >
                 Min:{" "}
@@ -862,18 +997,6 @@ console.log("Fetching withdraw limits",response);
           )}
         </DialogActions>
       </Dialog>
-      <ToastContainer
-        position="top-center"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="dark"
-      />
     </Box>
   );
 };
@@ -936,8 +1059,9 @@ const styles = {
     color: "#58E9F8",
     fontWeight: "400",
     fontSize: "1.25rem",
+    textAlign: "center",
     fontFamily: "Metal Mania",
-    mb: 2,
+  
   },
   sectionTitle: {
     fontWeight: "400",
@@ -948,12 +1072,14 @@ const styles = {
     mb: 2,
   },
   statsContainer: {
+    width: "94%",
     height: "200px",
     alignItems: "center",
     justifyContent: "center",
     display: "flex",
     flexDirection: "column",
     gap: 2,
+    margin: "0 auto",
   },
   statCard: {
     width: { xs: "94%", sm: "365px" },
@@ -975,10 +1101,10 @@ const styles = {
   },
   statValue: {
     fontSize: { xs: "1rem", sm: "1.25rem" },
-    padding: "10px",
     fontFamily: "Inter",
     fontWeight: "600",
-    marginRight: "10px",
+    display: 'flex',
+    alignItems: 'center',
   },
   walletTitle: {
     width: { xs: "100%", sm: "143px" },
@@ -990,9 +1116,10 @@ const styles = {
     justifyContent: "center",
   },
   coinIcon: {
-    padding: "30px",
-    width: "24px",
-    height: "24px",
+    width: "20px",
+    height: "20px",
+    display: 'flex',
+    alignItems: 'center',
   },
   actionButton: {
     backgroundColor: "#03415D",
@@ -1004,13 +1131,18 @@ const styles = {
     "&:hover": {
       backgroundColor: "#1976d2",
     },
-    width: "95%",
+    width: { xs: "95%", sm: "365px" },
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
   buttonGroup: {
     display: "flex",
     flexDirection: { xs: "row", sm: "row" },
     alignItems: "center",
+    justifyContent: "center",
     gap: "10px",
+    width: "100%",
   },
   depositButton: {
     backgroundColor: "#03415D",
@@ -1034,7 +1166,10 @@ const styles = {
     "&:hover": {
       backgroundColor: "#1976d2",
     },
-    width: { xs: "100%", sm: "45%" },
+    width: { xs: "95%", sm: "365px" },
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
 };
 

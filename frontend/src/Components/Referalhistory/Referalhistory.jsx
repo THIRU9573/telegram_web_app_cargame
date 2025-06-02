@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect,useContext } from "react";
+import { MyContext } from "../../context/Mycontext";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
@@ -31,11 +32,14 @@ const ReferralHistory = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalBonus, setTotalBonus] = useState(0);
+  const {data} = useContext(MyContext);
   const navigate = useNavigate();
 
   // Fetch referral history data
   useEffect(() => {
     const fetchReferralHistory = async () => {
+      console.log("datainReferalHistory",data);
+      
       const userId = localStorage.getItem("userId");
 
       if (!userId) {
@@ -47,7 +51,7 @@ const ReferralHistory = () => {
       try {
         const response = await axios.get(`${GetReferralHistory}/${userId}`, {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("stringToken")}`,
+            Authorization: `Bearer ${localStorage.getItem("upToken")}`,
           },
         });
         console.log(response.data.data);
