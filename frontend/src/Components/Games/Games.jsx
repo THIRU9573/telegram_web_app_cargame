@@ -30,6 +30,8 @@ function Games() {
   const [open, setOpen] = useState(false);
   const [rewardClaimed, setRewardClaimed] = useState(false);
   const [activeRewardPoints, setActiveRewardPoints] = useState(0);
+  const [timeRemaining, setTimeRemaining] = useState(null);
+  const [isEligibleForReward, setIsEligibleForReward] = useState(true);
 const { data, setData } = useContext(MyContext);
 
   const games = [{ id: 1, title: "String Racing", players: "1M+ players" }];
@@ -214,10 +216,9 @@ const { data, setData } = useContext(MyContext);
     }
     try {
       const userId = localStorage.getItem("userId");
-      // const token = localStorage.getItem("upToken");
       console.log("context",data);
       
-      const token = data.token;
+      const token = data;
       console.log("Claiming reward for user:", userId);
 
       const response = await axios.post(
@@ -228,19 +229,26 @@ const { data, setData } = useContext(MyContext);
       console.log("Reward claim response:", response.data);
 
       if (response.data) {
-        const pointsEarned = response.data.points || 0;
+        if (response.data.message && response.data.message.includes("⏳")) {
+          // Handle time remaining case
+          const minutesRemaining = parseInt(response.data.message.match(/\d+/)[0]);
+          setTimeRemaining(minutesRemaining);
+          setIsEligibleForReward(false);
+          toast.error(response.data.message);
+          return;
+        }
+
+        const pointsEarned = response.data.data?.rewardPoints || 0;
         setActiveRewardPoints(pointsEarned);
         toast.success("Reward claimed successfully!");
         setRewardClaimed(true);
+        setIsEligibleForReward(false);
 
         // Get the current balance from the API response or localStorage
         const currentBalance =
-          response.data.totalPoints ||
+          response.data.data?.finalBalance ||
           parseInt(localStorage.getItem("userBalance") || "0");
         const newBalance = currentBalance + pointsEarned;
-
-        // Update localStorage with the new balance
-        // localStorage.setItem("userBalance", newBalance.toString());
 
         // Create and dispatch the points update event
         const pointsUpdateEvent = new CustomEvent("pointsUpdated", {
@@ -272,6 +280,11 @@ const { data, setData } = useContext(MyContext);
     } catch (error) {
       console.error("Reward claim error:", error.response || error);
       const msg = error.response?.data?.message || "Failed to claim reward";
+      if (msg.includes("⏳")) {
+        const minutesRemaining = parseInt(msg.match(/\d+/)[0]);
+        setTimeRemaining(minutesRemaining);
+        setIsEligibleForReward(false);
+      }
       toast.error(msg);
       setOpen(false);
     }
@@ -487,9 +500,11 @@ const { data, setData } = useContext(MyContext);
             <Typography variant="h6" sx={{ textAlign: "center" }}>
               {rewardClaimed
                 ? `Congratulations! You earned ${activeRewardPoints} points!`
-                : "Claim your daily reward!"}
+                : isEligibleForReward
+                ? "Claim your daily reward!"
+                : `Please wait ${timeRemaining} minutes to claim your next reward`}
             </Typography>
-            {!rewardClaimed && (
+            {!rewardClaimed && isEligibleForReward && (
               <Button
                 onClick={handleClaimReward}
                 variant="contained"

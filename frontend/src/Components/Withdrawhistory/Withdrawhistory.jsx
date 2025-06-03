@@ -59,8 +59,11 @@ const Withdrawhistory = () => {
       });
 
       if (response.data && response.data.withdrawals) {
-        setWithdrawHistory(response.data.withdrawals);
-        setTotalPages(Math.ceil(response.data.withdrawals.length / 10));
+        const sortedWithdrawals = response.data.withdrawals.sort((a, b) => 
+          new Date(b.createdAt) - new Date(a.createdAt)
+        );
+        setWithdrawHistory(sortedWithdrawals);
+        setTotalPages(Math.ceil(sortedWithdrawals.length / 10));
       } else {
         setWithdrawHistory([]);
         setTotalPages(1);
@@ -158,7 +161,7 @@ const Withdrawhistory = () => {
                 </TableBody>
               </Table>
             </TableContainer>
-
+                  {/* pagination */}
             {withdrawHistory.length > 0 && (
               <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
                 <Stack spacing={2}>

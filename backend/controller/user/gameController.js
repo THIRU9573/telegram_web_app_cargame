@@ -127,6 +127,7 @@ const placeBet = async (req, res) => {
           gameTitle: gameHistory.gameTitle,
           betAmount: gameHistory.betAmount,
           winAmount: gameHistory.winAmount,
+          initialbalance : gameHistory.initialbalance,
           finalbalance: user.ticketBalance,
           playedStatus: gameHistory.playedStatus,
         },

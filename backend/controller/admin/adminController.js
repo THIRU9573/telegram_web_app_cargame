@@ -410,78 +410,175 @@ const withdrawLimits = async (req, res) => {
   }
 };
 
+// const approvewithdraw = async (req, res) => {
+//   const { requestId } = req.body;
+
+//   try {
+//     // Step 1: Fetch the withdrawal request and populate userId
+//     const request = await Withdraw.findById(requestId).populate(
+//       "userId",
+//       "username ticketBalance"
+//     );
+
+//     if (!request) {
+//       return res.status(404).json({ message: "Withdrawal request not found" });
+//     }
+
+//     // Step 2: Ensure the request is still pending
+//     if (request.status !== "pending") {
+//       return res
+//         .status(400)
+//         .json({ message: "Withdrawal request is already processed" });
+//     }
+
+//           const mintresponse = await fetch('https://testnet.tonapi.io/v2/rates?tokens=ton&currencies=usdt', {
+//             method: 'GET',
+//             headers: {},
+//           });
+
+//           const data = await mintresponse.json();
+//           var Token_Amount = (Withdraw.After_Charge / data.rates.TON.prices.USDT).toFixed(2);
+//           var Fee_tokens = (Withdraw.charge / data.rates.TON.prices.USDT).toFixed(4)
+//           // var TokenSymbol = 'TON'
+
+//     // Step 3: Check if userId is populated
+//       const user = request.userId;
+//     console.log("request11", user);
+
+//     if (!user) {
+//       return res
+//         .status(400)
+//         .json({
+//           message: "User associated with this withdrawal request not found",
+//         });
+//     }
+
+//     // Step 4: Log current balance before deduction
+//     console.log("Current user ticketBalance:", user.ticketBalance);
+
+//     // Check user's balance and deduct the amount
+//     if (user.ticketBalance < request.amount) {
+//       return res
+//         .status(400)
+//         .json({ message: "Insufficient balance in user's account" });
+//     }
+
+//     // Step 5: Mark the withdrawal request as approved before deducting
+//     // Mark the withdrawal request as approved first to prevent duplicate deduction
+//     request.status = "approved";
+//     request.tokenAmount = Token_Amount;
+//     request.feeTokens = Fee_tokens;
+//     await request.save();
+
+//     // Step 6: Deduct the amount from the user's balance
+//     // user.ticketBalance -= request.amount;
+
+//     // Log balance after deduction to ensure correct calculation
+//     console.log("User ticketBalance after deduction:", user.ticketBalance);
+
+//     // Ensure to fetch the updated user document and save it correctly
+//     await user.save();
+
+//     // Re-fetch the updated user to ensure balance is properly saved
+//     const updatedUser = await User.findById(user._id);
+
+//     res.status(200).json({
+//       message: "Withdrawal request approved successfully.",
+//       updatedBalance: updatedUser.ticketBalance, // Use the re-fetched balance to ensure it is correct
+//     });
+//   } catch (error) {
+//     console.error("Error approving withdrawal:", error.message);
+//     res
+//       .status(500)
+//       .json({
+//         message: "Failed to approve withdrawal request",
+//         error: error.message,
+//       });
+//   }
+// };
+
 const approvewithdraw = async (req, res) => {
   const { requestId } = req.body;
 
   try {
-    // Step 1: Fetch the withdrawal request and populate userId
-    const request = await Withdraw.findById(requestId).populate(
-      "userId",
-      "username ticketBalance"
-    );
+    // Fetch withdrawal request
+    const request = await Withdraw.findById(requestId);
 
     if (!request) {
       return res.status(404).json({ message: "Withdrawal request not found" });
     }
 
-    // Step 2: Ensure the request is still pending
     if (request.status !== "pending") {
       return res
         .status(400)
-        .json({ message: "Withdrawal request is already processed" });
+        .json({ message: "Withdrawal request already processed" });
     }
 
-    // Step 3: Check if userId is populated
-    const user = request.userId;
-    console.log("request11", user);
+    // Fetch TON price
+    const mintresponse = await fetch(
+      "https://testnet.tonapi.io/v2/rates?tokens=ton&currencies=usdt"
+    );
+    const data = await mintresponse.json();
 
-    if (!user) {
-      return res
-        .status(400)
-        .json({
-          message: "User associated with this withdrawal request not found",
-        });
-    }
+    const Token_Amount = (
+      request.After_Charge / data.rates.TON.prices.USDT
+    ).toFixed(2);
+    const Fee_tokens = (request.charge / data.rates.TON.prices.USDT).toFixed(4);
 
-    // Step 4: Log current balance before deduction
-    console.log("Current user ticketBalance:", user.ticketBalance);
+    // Update withdrawal with status and token values
+    const updatedWithdrawal = await Withdraw.findByIdAndUpdate(
+      requestId,
+      {
+        status: "approved",
+        Token_Amount: Token_Amount,
+        Fee_tokens: Fee_tokens,
+      },
+      { new: true }
+    );
 
-    // Check user's balance and deduct the amount
-    if (user.ticketBalance < request.amount) {
-      return res
-        .status(400)
-        .json({ message: "Insufficient balance in user's account" });
-    }
-
-    // Step 5: Mark the withdrawal request as approved before deducting
-    // Mark the withdrawal request as approved first to prevent duplicate deduction
-    request.status = "approved";
-    await request.save();
-
-    // Step 6: Deduct the amount from the user's balance
-    // user.ticketBalance -= request.amount;
-
-    // Log balance after deduction to ensure correct calculation
-    console.log("User ticketBalance after deduction:", user.ticketBalance);
-
-    // Ensure to fetch the updated user document and save it correctly
-    await user.save();
-
-    // Re-fetch the updated user to ensure balance is properly saved
-    const updatedUser = await User.findById(user._id);
-
-    res.status(200).json({
+    return res.status(200).json({
       message: "Withdrawal request approved successfully.",
-      updatedBalance: updatedUser.ticketBalance, // Use the re-fetched balance to ensure it is correct
+      withdrawal: updatedWithdrawal,
     });
   } catch (error) {
     console.error("Error approving withdrawal:", error.message);
-    res
-      .status(500)
-      .json({
-        message: "Failed to approve withdrawal request",
-        error: error.message,
-      });
+    return res.status(500).json({
+      message: "Failed to approve withdrawal request",
+      error: error.message,
+    });
+  }
+};
+
+const transferwithdraw = async (req, res) => {
+  try {
+    const { requestId, boc } = req.body;
+    const Transfer = await Withdraw.findById(requestId);
+    if (Transfer.status == "Transferred") {
+      console.log("Already Processed");
+    }
+
+    // const cell = Cell.fromBoc(Buffer.from(boc, "base64"))[0];
+    // const hash = cell.hash().toString("hex");
+    // console.log("✅ Extracted Transaction Hash:", hash);
+
+    const updateTransaction = await Withdraw.findByIdAndUpdate(
+      requestId,
+      {
+        hash: boc,
+        status: "transferred",
+      },
+      { new: true }
+    );
+    return res.status(200).json({
+      message: "Withdrawal request transferred successfully.",
+      withdrawal: updateTransaction,
+    });
+  } catch (error) {
+    console.error("Error transfer withdrawal:", error.message);
+    return res.status(500).json({
+      message: "Failed to transfer withdrawal request",
+      error: error.message,
+    });
   }
 };
 
@@ -502,12 +599,11 @@ const rejectwithdraw = async (req, res) => {
         .json({ message: "Withdrawal request is already processed" });
     }
 
-     const user = await User.findById(request.userId);
-     console.log("userrrrrrrrrr",user);
+    const user = await User.findById(request.userId);
+    console.log("userrrrrrrrrr", user);
 
-       user.ticketBalance += request.amount;
-        await user.save();
-     
+    user.ticketBalance += request.amount;
+    await user.save();
 
     // Mark the request as rejected
     request.status = "rejected";
@@ -543,21 +639,17 @@ const AdminSetReward = async (req, res) => {
     });
     await newRewardSetting.save();
 
-    return res
-      .status(201)
-      .json({
-        message: "Daily Reward points updated successfully!",
-        newRewardSetting,
-      });
+    return res.status(201).json({
+      message: "Daily Reward points updated successfully!",
+      newRewardSetting,
+    });
   } catch (error) {
     console.error("❌ Error in setting/rewarding points:", error);
     //console.error(error.stack);
-    res
-      .status(500)
-      .json({
-        message: "Unable to set/edit reward points",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "Unable to set/edit reward points",
+      error: error.message,
+    });
   }
 };
 
@@ -656,12 +748,10 @@ const addAd = async (req, res) => {
       !AdTimer_InMinutes ||
       !Status
     ) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Please provide all required fields",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Please provide all required fields",
+      });
     }
 
     // If AdId is provided, attempt to update the ad
@@ -872,12 +962,10 @@ const getAllClaimHistory = async (req, res) => {
       .exec();
 
     if (!claims || claims.length === 0) {
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "No claim history found for any users",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "No claim history found for any users",
+      });
     }
 
     // Calculate total claim bonus (sum of all rewardPoints) for all users
@@ -903,74 +991,78 @@ const getAllClaimHistory = async (req, res) => {
 };
 
 const Usernotification = async (req, res) => {
-    const { Notification } = req.body;
+  const { Notification } = req.body;
 
-    if (!Notification) {
-        return res.status(404).json({
-            status: "Failed",
-            message: "Notification not found.",
-        });
-    }
+  if (!Notification) {
+    return res.status(404).json({
+      status: "Failed",
+      message: "Notification not found.",
+    });
+  }
 
-    let successCount = 0;
-    let failCount = 0;
-    const botKey = process.env.TELEGRAM_BOT_TOKEN 
-    console.log(botKey, "botkey");
+  let successCount = 0;
+  let failCount = 0;
+  const botKey = process.env.TELEGRAM_BOT_TOKEN;
+  console.log(botKey, "botkey");
 
-    // Function to send the notification to all users
-    const sendNotificationToAllUsers = async () => {
+  // Function to send the notification to all users
+  const sendNotificationToAllUsers = async () => {
+    try {
+      // Fetch all users
+      const users = await User.find({}).select({ chatId: 1 }); // Get all users' chatIds
+
+      for (let i = 0; i < users.length; i++) {
+        const chatId = users[i].chatId;
+        const sendMessageUrl = `https://api.telegram.org/bot${botKey}/sendMessage`;
+
+        console.log(chatId, "chatId");
+
         try {
-            // Fetch all users
-            const users = await User.find({}).select({ chatId: 1 }); // Get all users' chatIds
+          const response = await axios.get(sendMessageUrl, {
+            params: {
+              chat_id: chatId,
+              text: Notification,
+            },
+          });
 
-            for (let i = 0; i < users.length; i++) {
-                const chatId = users[i].chatId;
-                const sendMessageUrl = `https://api.telegram.org/bot${botKey}/sendMessage`;
-
-                console.log(chatId, "chatId");
-
-                try {
-                    const response = await axios.get(sendMessageUrl, {
-                        params: {
-                            chat_id: chatId,
-                            text: Notification,
-                        },
-                    });
-
-                    if (response.data.ok) {
-                        console.log(`Notification sent to user ${chatId}`);
-                        successCount++
-                    } else {
-                        console.error(`Failed to send notification to user ${chatId}`, response.data);
-                        failCount++   
-                    }
-                } catch (error) {
-                    failCount++; 
-                    console.error(`Error sending notification to user ${chatId}`, error.message);
-                }
-            }
-
-            return res.status(200).json({
-                status: "Success",
-                message:` Notifications sent. Success: ${successCount}, Failed: ${failCount}`,
-            });
-
+          if (response.data.ok) {
+            console.log(`Notification sent to user ${chatId}`);
+            successCount++;
+          } else {
+            console.error(
+              `Failed to send notification to user ${chatId}`,
+              response.data
+            );
+            failCount++;
+          }
         } catch (error) {
-            return res.status(500).json({
-                status: "Failed",
-                message: "Internal server error while sending notifications.",
-            });
+          failCount++;
+          console.error(
+            `Error sending notification to user ${chatId}`,
+            error.message
+          );
         }
-    };
-    // Call the function to send notifications to all users
-    sendNotificationToAllUsers();
-};
+      }
 
+      return res.status(200).json({
+        status: "Success",
+        message: ` Notifications sent. Success: ${successCount}, Failed: ${failCount}`,
+      });
+    } catch (error) {
+      return res.status(500).json({
+        status: "Failed",
+        message: "Internal server error while sending notifications.",
+      });
+    }
+  };
+  // Call the function to send notifications to all users
+  sendNotificationToAllUsers();
+};
 
 const AdminSetReferralReward = async (req, res) => {
   try {
     const { id } = req.params;
-    const {referralAmount,signupBonus,referral_Note,botName} = req.body;
+    const { referralAmount, signupBonus, referral_Note, botName } = req.body;
     // const referralAmount = Number(req.body.referralAmount);
 
     if (isNaN(referralAmount) || referralAmount <= 0) {
@@ -982,7 +1074,10 @@ const AdminSetReferralReward = async (req, res) => {
       const updatedReferralSetting = await ReferralSetting.findByIdAndUpdate(
         id,
         {
-          referralAmount,signupBonus,referral_Note,botName,
+          referralAmount,
+          signupBonus,
+          referral_Note,
+          botName,
           updatedAt: new Date(),
           Status: "active",
         },
@@ -1010,7 +1105,10 @@ const AdminSetReferralReward = async (req, res) => {
       await ReferralSetting.updateMany({}, { $set: { Status: "inactive" } });
 
       const newReferralSetting = new ReferralSetting({
-        referralAmount,signupBonus,referral_Note,botName,
+        referralAmount,
+        signupBonus,
+        referral_Note,
+        botName,
         Status: "active",
         updatedAt: new Date(),
       });
@@ -1042,12 +1140,10 @@ const AdminGetReferralReward = async (req, res) => {
         return res.status(404).json({ message: "Referral reward not found" });
       }
 
-      return res
-        .status(200)
-        .json({
-          message: "Specific referralSetting fetched succesfully",
-          referralSetting,
-        });
+      return res.status(200).json({
+        message: "Specific referralSetting fetched succesfully",
+        referralSetting,
+      });
     } else {
       // Get all referral rewards
       const referralSettings = await ReferralSetting.find({});
@@ -1079,6 +1175,7 @@ module.exports = {
   resetPassword,
   changePassword,
   approvewithdraw,
+  transferwithdraw,
   withdrawLimits,
   rejectwithdraw,
   AdminSetReward,

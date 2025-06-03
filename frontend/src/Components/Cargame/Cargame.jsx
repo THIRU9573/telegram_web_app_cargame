@@ -104,7 +104,7 @@ export default function Cargame() {
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [betAmount, setBetAmount] = useState(0);
+  const [betAmount, setBetAmount] = useState("");
   const [gameId, setGameId] = useState("682c52efdc400a61db731520");
   const [coinsCollected, setCoinsCollected] = useState(0);
   const [adWatchesLeft, setAdWatchesLeft] = useState(1);
@@ -147,7 +147,7 @@ export default function Cargame() {
       try {
         const response = await axios.get(`${UserProfile}/${userId}`, {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("stringToken")}`,
+            Authorization: `Bearer ${localStorage.getItem("upToken")}`,
           },
         });
         console.log("TicketBalance", response.data.user.ticketBalance);
@@ -192,8 +192,8 @@ export default function Cargame() {
   };
 
   const placebet = async () => {
-    const stringToken = localStorage.getItem("stringToken");
-    if (!stringToken) {
+    const upToken = localStorage.getItem("upToken");
+    if (!upToken) {
       setError("Unauthorized: No authentication token found.");
       setLoading(false);
       return;
@@ -215,7 +215,7 @@ export default function Cargame() {
         },
         {
           headers: {
-            Authorization: `Bearer ${stringToken}`,
+            Authorization: `Bearer ${upToken}`,
             "Content-Type": "application/json", // ✅ Ensure correct content type
           },
         }
@@ -255,8 +255,8 @@ export default function Cargame() {
       "winAmount :",
       finalWinAmount
     );
-    const stringToken = localStorage.getItem("stringToken");
-    if (!stringToken) {
+    const upToken = localStorage.getItem("upToken");
+    if (!upToken) {
       setError("Unauthorized: No authentication token found.");
       setLoading(false);
       return;
@@ -278,7 +278,7 @@ export default function Cargame() {
         },
         {
           headers: {
-            Authorization: `Bearer ${stringToken}`,
+            Authorization: `Bearer ${upToken}`,
             "Content-Type": "application/json",
           },
         }
@@ -356,8 +356,8 @@ export default function Cargame() {
 
   useEffect(() => {
     const fetchLevelData = async () => {
-      const stringToken = localStorage.getItem("stringToken");
-      if (!stringToken) {
+      const upToken = localStorage.getItem("upToken");
+      if (!upToken) {
         setError("Unauthorized: No authentication token found.");
         setLoading(false);
         return;
@@ -365,7 +365,7 @@ export default function Cargame() {
 
       try {
         const response = await axios.get(`${GameControlles}/${gameId}`, {
-          headers: { Authorization: `Bearer ${stringToken}` },
+          headers: { Authorization: `Bearer ${upToken}` },
         });
         console.log("API Response1", response.data.data.level);
         console.log("API Response2", response.data.data.adSDK);
@@ -1019,12 +1019,13 @@ export default function Cargame() {
     const newLevel = Math.floor(gameStateRef.current.totalDistance / levelDistance) + 1; // Add 1 to start from level 1
     if (newLevel > stage && newLevel <= categoryData.length) {
       setStage(newLevel);
-      // Check if player reached the max level
-      if (newLevel === categoryData.length) {
+      // Check if player reached the max level (levelData.length)
+      if (newLevel === categoryData.length) { // Changed from >= to > since we're starting from 1
         // Use the current score ref for the most up-to-date score
         console.log("Game won with score:", currentScoreRef.current);
         handleGameLose();
         setGameWon(true);
+
         endGame(); // End the game when player wins
         return; // Exit early to prevent further updates
       }
@@ -1452,9 +1453,8 @@ export default function Cargame() {
 
   const endGame = () => {
     gameStateRef.current.gameRunning = false;
-    setGameOver(true);
     // Only set gameOver if it's not a win
-    if (!gameWon && !gameOver) {
+    if (!gameWon) {
       setGameOver(true);
     }
 
@@ -1898,7 +1898,7 @@ export default function Cargame() {
       {gameWon && (
         <Dialog
           open={gameWon}
-          onClose={() => setGameWon(false)}
+          onClose={() => {}} // Prevent closing by clicking outside
           PaperProps={{
             sx: {
               bgcolor: "#001f3f",
@@ -1969,10 +1969,10 @@ export default function Cargame() {
       )}
 
       {/* Game over dialog */}
-      {gameOver && !gameWon && (
+      {gameOver && !gameWon && !showInitialScreen && (
         <Dialog
           open={gameOver}
-          onClose={() => !gameOver && startGame()}
+          onClose={() => {}} // Prevent closing by clicking outside
           PaperProps={{
             sx: {
               bgcolor: "#001f3f",

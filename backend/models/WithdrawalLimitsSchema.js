@@ -17,7 +17,8 @@ const withdrawalLimitsSchema = mongoose.Schema({
   },
   Token_Mint: {
     type: String,
-  },
+  }
+  ,
   Withdraw_Note: {
     type: String,
   },

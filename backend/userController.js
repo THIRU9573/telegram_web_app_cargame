@@ -14,7 +14,7 @@ const CompleteAdData = require("../../models/CompleteAdSchema");
 const ReferralSetting = require("../../models/refferalSettingSchema");
 const TicketConvertion = require("../../models/TicketConvertion");
 const withdrawLimits = require("../../models/WithdrawalLimitsSchema");
-const TonWeb = require("tonweb");
+const TonWeb = require('tonweb');
 const refferalSettingSchema = require("../../models/refferalSettingSchema");
 const { Address } = TonWeb.utils;
 // const { Address } = require('@ton/core');
@@ -69,11 +69,12 @@ const login = async (req, res) => {
 
       // Get initial ticket amount for signup
       // const amount = 2000;
-      const Bonus = await ReferralSetting.findOne({ Status: "active" });
-      if (!Bonus) {
-        return res.status(404).json({ message: "Signup Bonus not found" });
+      const  Bonus = await ReferralSetting.findOne({Status:"active"});
+      if(!Bonus){
+        return res.status(404).json({message:"Signup Bonus not found"});
       }
       // console.log(Bonus.signupBonus,"amount");
+      
 
       // Generate referral link for new user
       const referralLink = `https://t.me/teststringrace_bot/play?start=${chatId}`;
@@ -84,7 +85,7 @@ const login = async (req, res) => {
         username,
         profilepic,
         referalId,
-        ticketBalance: Bonus.signupBonus,
+        ticketBalance:Bonus.signupBonus,
         referrerId: refererUser ? refererUser._id : null,
         referralLink,
         loginType: "user",
@@ -238,7 +239,7 @@ const getProfile = async (req, res) => {
 // Submit a withdrawal request
 
 const withdrawrequest = async (req, res) => {
-  console.log(req.body, "jisd");
+console.log(req.body,"jisd");
 
   const userId = req.params._id;
   const { amount, walletAddress, token } = req.body;
@@ -246,22 +247,16 @@ const withdrawrequest = async (req, res) => {
   try {
     // Validate amount
     if (typeof amount !== "number" || amount <= 0) {
-      return res
-        .status(400)
-        .json({ message: "Amount must be a positive number" });
+      return res.status(400).json({ message: "Amount must be a positive number" });
     }
     // Validate walletAddress presence & type
     if (!walletAddress || typeof walletAddress !== "string") {
-      return res
-        .status(400)
-        .json({ message: "walletAddress is required and must be a string" });
+      return res.status(400).json({ message: "walletAddress is required and must be a string" });
     }
 
     // Validate token (only TON allowed)
     if (!token || token !== "TON") {
-      return res
-        .status(400)
-        .json({ message: "Token must be 'TON' for TON withdrawal" });
+      return res.status(400).json({ message: "Token must be 'TON' for TON withdrawal" });
     }
 
     // TON wallet address validation with TonWeb
@@ -271,29 +266,7 @@ const withdrawrequest = async (req, res) => {
       return res.status(400).json({ message: "Invalid TON wallet address" });
     }
 
-    const firstChar = walletAddress.charAt(0);
 
-    // According to TEP-2:
-    // E... (bounceable, mainnet)
-    // U... (non-bounceable, mainnet)
-    // k... (bounceable, testnet)
-    // 0... (non-bounceable, testnet)
-
-    if (firstChar === "k" || firstChar === "0") {
-      console.log("This is a testnet address");
-    } else if (firstChar === "E" || firstChar === "U") {
-      return res.status(400).json({ message: "Enter testnet wallet address" });
-    } else {
-      console.log("Unknown network type");
-      return res.status(400).json({ message: "please enter a valid address" });
-    }
-
-    // Check if address is bounceable
-    if (firstChar === "E" || firstChar === "k") {
-      console.log("This is a bounceable address");
-    } else if (firstChar === "U" || firstChar === "0") {
-      console.log("This is a non-bounceable address");
-    }
     // Atomic balance deduction & user fetch
     const user = await User.findOneAndUpdate(
       { _id: userId, ticketBalance: { $gte: amount } },
@@ -301,43 +274,40 @@ const withdrawrequest = async (req, res) => {
       { new: true }
     );
     if (!user) {
-      return res
-        .status(400)
-        .json({ message: "User not found or insufficient balance" });
+      return res.status(400).json({ message: "User not found or insufficient balance" });
     }
 
     // Fetch conversion rate
     const conversion = await TicketConvertion.findOne({ Status: "ACTIVE" });
     if (!conversion) {
-      return res
-        .status(500)
-        .json({ message: "Ticket conversion rate not found" });
+      return res.status(500).json({ message: "Ticket conversion rate not found" });
     }
 
-    const withdrawallimits = await withdrawLimits.findOne({ status: "ACTIVE" });
-    if (!withdrawallimits) {
-      return res
-        .status(404)
-        .json({ message: "withdrawal Method is not found" });
+
+     const withdrawallimits = await withdrawLimits.findOne({ status : "ACTIVE" })
+    if(!withdrawallimits){
+      return res.status(404).json({message : "withdrawal Method is not found"});
     }
 
-    const Money =
-      (amount * conversion.AmountInToken) / conversion.TicketQuantity;
+
+    const Money = (amount * conversion.AmountInToken) / conversion.TicketQuantity;
     const charge = (Money * withdrawallimits.Percentage_Charge) / 100;
     const afterCharge = Money - charge;
     console.log("Converted Money:", Money);
     console.log("Converted charge:", charge);
     console.log("Converted afterCharge:", afterCharge);
 
+   
+     
     // Create withdrawal request
     const request = new Withdraw({
       userId,
       amount,
-      USDT_Amount: Money,
+      USDT_Amount : Money,
       username: user.username,
       walletAddress,
-      charge: charge,
-      After_Charge: afterCharge,
+      charge : charge,
+      After_Charge :afterCharge,
       token,
       status: "pending",
     });

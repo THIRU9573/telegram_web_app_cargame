@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 //admin controller
-const { Adminsignup,AdminSetReferralReward,Usernotification, Adminlogin, getAllUsers, EditProfile, AdmingetProfile, AdminSetReward, GetAllDailyReward, approvewithdraw, getAllWithdrawStatus, withdrawLimits, rejectwithdraw, changePassword, forgotPassword, resetPassword, AdminLogout, addAd, getAds, getCompletedTasksByUser, getCompletedAdsByUser, getAllClaimHistory, AdminGetReferralReward } = require("../controller/admin/adminController");
+const { Adminsignup,AdminSetReferralReward,Usernotification, Adminlogin, getAllUsers, EditProfile, AdmingetProfile, AdminSetReward, GetAllDailyReward, approvewithdraw,transferwithdraw, getAllWithdrawStatus, withdrawLimits, rejectwithdraw, changePassword, forgotPassword, resetPassword, AdminLogout, addAd, getAds, getCompletedTasksByUser, getCompletedAdsByUser, getAllClaimHistory, AdminGetReferralReward } = require("../controller/admin/adminController");
 const { validateToken, isAdmin, isuser } = require("../middleware/token")
 //user controller
 const { signup, UserClaimReward,getuserads, login, withdrawrequest, getProfile, updateProfile, getWithdrawStatus ,getreferralHistory,UserGetReferralReward} = require("../controller/user/userController")
@@ -29,9 +29,10 @@ router.post("/adminlogin", Adminlogin);    //✅-
 router.get("/admingetallusers",validateToken, isAdmin, getAllUsers);    //✅-
 router.put("/admineditprofile/:_id", validateToken, isAdmin, EditProfile);   //✅-
 router.get("/admingetprofile/:_id", validateToken, isAdmin, AdmingetProfile);    //✅-
-router.post("/setdailyReward", validateToken, AdminSetReward)   //✅-
+router.post("/setdailyReward", validateToken, isAdmin, AdminSetReward)   //✅-
 router.get("/getalldailyreward", validateToken, isAdmin, GetAllDailyReward);  //✅-
-router.post("/approveWithdraw", validateToken, isAdmin, approvewithdraw);    //✅-
+router.post("/approveWithdraw",validateToken, isAdmin, approvewithdraw);    //✅-
+router.post("/transferWithdraw", validateToken, isAdmin, transferwithdraw);    //✅-
 router.post("/rejectWithdraw", validateToken, isAdmin, rejectwithdraw);   //✅-
 router.get("/getallwithdrawstatus", validateToken, isAdmin, getAllWithdrawStatus);   //✅
 router.post("/addtask", validateToken, isAdmin, Addtask);   //✅-
@@ -55,11 +56,11 @@ router.post("/game", validateToken, isAdmin, createOrUpdateGame)  //✅-
 router.post("/gameUpdate/:_id", validateToken, isAdmin, createOrUpdateGame);  //✅-
 router.get("/gettotalgames", validateToken, isAdmin, getAllGames);  //✅-
 router.get("/getsinglegame/:_id", validateToken, isAdmin, getSingleGame);  //✅-
-router.post('/sendNotificationToAllUsers', Usernotification);   //✅-
+router.post('/sendNotificationToAllUsers', validateToken, isAdmin, Usernotification);   //✅-
 router.post('/set-referral-reward', validateToken, isAdmin, AdminSetReferralReward);    //✅-
 router.post('/set-referral-rewardByID/:id', validateToken, isAdmin, AdminSetReferralReward);    //✅-
 router.get('/admin/referral-reward/:id', validateToken, isAdmin, AdminGetReferralReward);   //✅-
-router.get('/admin/referral-rewards', AdminGetReferralReward);  //✅-
+router.get('/admin/referral-rewards',validateToken, isAdmin, AdminGetReferralReward);  //✅-
 router.get("/getreferralHistory", validateToken,isAdmin, getreferralHistory);    //✅-
 router.post("/CreateWithdrawLimits", validateToken,isAdmin, updateOrCreateWithdrawLimits);    //✅-
 router.post("/updateWithdrawLimits", validateToken,isAdmin, updateOrCreateWithdrawLimits);    //✅-
@@ -85,7 +86,7 @@ router.post("/userlogin", login);    //✅-
 router.get("/getprofile/:_id", validateToken, isuser, getProfile);   //✅-
 router.post("/updateprofile/:_id", validateToken, isuser, updateProfile);  //✅-
 router.post("/claimdailyReward/:_id", validateToken, isuser, UserClaimReward);    //✅-
-router.post("/withdrawRequest/:_id", withdrawrequest);    //✅-
+router.post("/withdrawRequest/:_id", validateToken, isuser, withdrawrequest);    //✅-
 router.get('/getWithdrawStatus/:_id', validateToken, isuser, getWithdrawStatus);
 router.get("/getusersinglegame/:_id", validateToken, getUserSingleGame);  //✅-
 router.post("/game/:_id", validateToken, isuser, placeBet);  //✅-

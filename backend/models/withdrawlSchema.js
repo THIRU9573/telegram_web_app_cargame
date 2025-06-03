@@ -7,6 +7,9 @@ const withdrawalSchema = mongoose.Schema(
       ref: "User", // Reference to the User model
       required: true,
     },
+        hash: {
+      type: String,
+    },
     username: {
       type: String,
       default: null,
@@ -36,9 +39,22 @@ const withdrawalSchema = mongoose.Schema(
       type: Number,
       required: true,
     },
+    //     transactionType: {
+    //   type: String,
+    //   enum: ["BUY", "DEPOSIT", "WITHDRAW"],
+    // },
+    Fee_tokens: {
+      type: Number,
+    },
+  Token_Amount: {
+      type: Number,
+    },
+       symbol: {
+      type: String,
+    },
     status: {
       type: String,
-      enum: ["pending", "approved", "rejected"], // Status of the withdrawal
+      enum: ["pending", "approved", "rejected",'transferred'], // Status of the withdrawal
       default: "pending",
     },
     rejectionReason: { type: String, required: false },
